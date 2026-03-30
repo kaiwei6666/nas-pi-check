@@ -1,3 +1,4 @@
+from pii_core_updated import export_csv
 import sys
 import csv
 from PySide6.QtCore import QObject, Signal, Slot, QThread
@@ -8,6 +9,7 @@ from PySide6.QtWidgets import (
 )
 
 from pii_core_updated import run_scan
+
 
 
 class ScanWorker(QObject):
@@ -68,12 +70,9 @@ class MainWindow(QMainWindow):
 
         btn_layout = QHBoxLayout()
         self.scan_btn = QPushButton("開始掃描")
-        self.export_btn = QPushButton("匯出 CSV")
         self.clear_btn = QPushButton("清空結果")
-        self.export_btn.setEnabled(False)
 
         btn_layout.addWidget(self.scan_btn)
-        btn_layout.addWidget(self.export_btn)
         btn_layout.addWidget(self.clear_btn)
         main_layout.addLayout(btn_layout)
 
@@ -92,7 +91,6 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.table)
 
         self.scan_btn.clicked.connect(self.start_scan)
-        self.export_btn.clicked.connect(self.export_csv)
         self.clear_btn.clicked.connect(self.clear_results)
 
     def append_log(self, message):
@@ -126,7 +124,6 @@ class MainWindow(QMainWindow):
             return
 
         self.scan_btn.setEnabled(False)
-        self.export_btn.setEnabled(False)
         self.append_log("開始掃描...")
 
         config = self.get_config()
@@ -153,9 +150,19 @@ class MainWindow(QMainWindow):
     def on_scan_finished(self, results):
         self.results = results
         self.populate_table(results)
-        self.append_log(f"掃描完成，共找到 {len(results)} 個檔案")
+
+        count = len(results)
+        self.append_log(f"掃描完成，共找到 {count} 個檔案")
+
+        # 👉 自動輸出 CSV（預設檔名）
+        if count > 0:
+            try:
+                export_csv(results)  # 預設會輸出 pii_report.csv
+                self.append_log("已自動輸出 CSV：pii_report.csv")
+            except Exception as e:
+                self.append_log(f"CSV 輸出失敗：{e}")
+
         self.scan_btn.setEnabled(True)
-        self.export_btn.setEnabled(len(results) > 0)
 
     @Slot(str)
     def on_scan_error(self, message):
@@ -215,8 +222,6 @@ class MainWindow(QMainWindow):
         self.results = []
         self.table.setRowCount(0)
         self.log_text.clear()
-        self.export_btn.setEnabled(False)
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
